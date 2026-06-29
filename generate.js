@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: '뉴스 내용이 없습니다.' });
   }
 
-  const systemPrompt = `당신은 BILANX RESEARCH의 금융 뉴스 편집 AI입니다.
+  const prompt = `당신은 BILANX RESEARCH의 금융 뉴스 편집 AI입니다.
 
 [바일랑스 마스코트 정보]
 - 흰색 치비 고양이 캐릭터
@@ -59,31 +59,32 @@ Flat black and white illustration style. Clean white background, bold Korean fon
 뉴스가 여러 개면 각각 별도 프롬프트 작성.
 
 JSON 형식으로만 응답 (백틱 없이):
-{"telegram": "...", "image_prompt": "..."}`;
+{"telegram": "...", "image_prompt": "..."}
+
+다음 뉴스를 처리해주세요:
+
+${news}`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const apiKey = process.env.GEMINI_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: `다음 뉴스를 처리해주세요:\n\n${news}` }],
-      }),
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+      })
     });
 
     if (!response.ok) {
       const err = await response.json();
-      return res.status(response.status).json({ error: err.error?.message || 'Claude API 오류' });
+      return res.status(response.status).json({ error: err.error?.message || 'Gemini API 오류' });
     }
 
     const data = await response.json();
-    const raw = data.content.map(b => b.text || '').join('');
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     let parsed;
     try {
