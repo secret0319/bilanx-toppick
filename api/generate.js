@@ -1,4 +1,12 @@
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -38,14 +46,12 @@ export default async function handler(req, res) {
 뉴스가 여러 개면 각각 위 포맷으로 작성.
 
 [출력 2] GPT-4o 이미지 프롬프트:
-다음 고정 템플릿을 채워서 완성하세요:
-
 Use the attached cat mascot (white chibi cat, green cape, "B" logo on chest) as reference. Black and white illustration, same exact style. Create ONE square card news image (1:1, Instagram format).
 
 Layout:
 - Top right: "BILANX RESEARCH" small logo text
-- Left side: BILANX cat mascot in [뉴스 분위기에 맞는 영어 표정] expression ([표정 영어 설명])
-- Right side: Illustrated scene showing: [뉴스 핵심 상황을 표현하는 구체적 흑백 일러스트 장면 묘사, 영어로]
+- Left side: BILANX cat mascot in [뉴스 분위기에 맞는 영어 표정] expression
+- Right side: Illustrated scene showing: [뉴스 핵심 상황 흑백 일러스트, 영어로]
 - Below scene: Bold Korean headline "[한국어 헤드라인]"
 - 4 bullet points:
 • [불릿1 — 원본 기반]
@@ -54,7 +60,7 @@ Layout:
 • [불릿4 — 원본 기반]
 - Bottom black bar: "[핵심 한 줄 요약 한국어]"
 
-Flat black and white illustration style. Clean white background, bold Korean font. No color except pure black and white.
+Flat black and white illustration style. Clean white background, bold Korean font.
 
 뉴스가 여러 개면 각각 별도 프롬프트 작성.
 
