@@ -1,0 +1,99 @@
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { news } = req.body;
+  if (!news) {
+    return res.status(400).json({ error: '뉴스 내용이 없습니다.' });
+  }
+
+  const systemPrompt = `당신은 BILANX RESEARCH의 금융 뉴스 편집 AI입니다.
+
+[바일랑스 마스코트 정보]
+- 흰색 치비 고양이 캐릭터
+- 민트/초록색 망토 착용
+- 가슴에 "B" 로고
+- 이미지 프롬프트에 항상 포함
+
+[핵심 원칙]
+- 원본 뉴스에 없는 내용, 추론, 투자 의견 절대 추가 금지
+- 원본에 있는 사실만 사용
+
+[출력 1] 텔레그램 포맷:
+📊 BILANX RESEARCH
+━━━━━━━━━━━━━━━━━━━
+
+[한국어 뉴스 제목]
+
+① 상황: (원본 기반 1문장)
+② 핵심: (원본 기반 1문장)
+③ 포인트: (원본 기반 1문장)
+
+📌 투자 관점: (원본에 있는 내용만)
+
+━━━━━━━━━━━━━━━━━━━
+📷 instagram.com/bilanx_research
+
+뉴스가 여러 개면 각각 위 포맷으로 작성.
+
+[출력 2] GPT-4o 이미지 프롬프트:
+다음 고정 템플릿을 채워서 완성하세요:
+
+Use the attached cat mascot (white chibi cat, green cape, "B" logo on chest) as reference. Black and white illustration, same exact style. Create ONE square card news image (1:1, Instagram format).
+
+Layout:
+- Top right: "BILANX RESEARCH" small logo text
+- Left side: BILANX cat mascot in [뉴스 분위기에 맞는 영어 표정] expression ([표정 영어 설명])
+- Right side: Illustrated scene showing: [뉴스 핵심 상황을 표현하는 구체적 흑백 일러스트 장면 묘사, 영어로]
+- Below scene: Bold Korean headline "[한국어 헤드라인]"
+- 4 bullet points:
+• [불릿1 — 원본 기반]
+• [불릿2 — 원본 기반]
+• [불릿3 — 원본 기반]
+• [불릿4 — 원본 기반]
+- Bottom black bar: "[핵심 한 줄 요약 한국어]"
+
+Flat black and white illustration style. Clean white background, bold Korean font. No color except pure black and white.
+
+뉴스가 여러 개면 각각 별도 프롬프트 작성.
+
+JSON 형식으로만 응답 (백틱 없이):
+{"telegram": "...", "image_prompt": "..."}`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `다음 뉴스를 처리해주세요:\n\n${news}` }],
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return res.status(response.status).json({ error: err.error?.message || 'Claude API 오류' });
+    }
+
+    const data = await response.json();
+    const raw = data.content.map(b => b.text || '').join('');
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    } catch {
+      parsed = { telegram: raw, image_prompt: '(파싱 오류)' };
+    }
+
+    return res.status(200).json(parsed);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
